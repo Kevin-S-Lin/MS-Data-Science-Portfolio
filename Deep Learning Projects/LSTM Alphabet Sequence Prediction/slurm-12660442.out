@@ -1,0 +1,44 @@
+ERROR: Unable to locate a modulefile for 'python/gcc/11.3.0/cuda/3.10.10'
+ERROR: Unable to locate a modulefile for 'cuda/11.8.0'
+Slurm job 12660442 running on
+gpu-b10-2.zaratan.umd.edu
+To run on 2 CPU cores with a100:1 GPU(s)
+All nodes: gpu-b10-2
+GPU devices: 0
+Tue Jul 15 16:31:42 EDT 2025
+/tmp/assignment3-job.12660442
+Loaded modules are:
+Currently Loaded Modulefiles:
+ 1) hpcc/deepthought2  
+Job will be started out of /tmp/assignment3-job.12660442
+Tue Jul 15 16:31:42 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 575.57.08              Driver Version: 575.57.08      CUDA Version: 12.9     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          Off |   00000000:81:00.0 Off |                    0 |
+| N/A   28C    P0             57W /  400W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+Setting up Python environment...
+/var/spool/slurmd/job12660442/slurm_script: line 76: pip: command not found
+Converting Jupyter notebook to Python script...
+/var/spool/slurmd/job12660442/slurm_script: line 80: jupyter: command not found
+Running the converted script...
+Copying results back to submit directory...
+cp: cannot stat 'assignment3_script.py': No such file or directory
+No PNG files to copy
+No PDF files to copy
+Job finished with exit code 127
+Tue Jul 15 16:31:42 EDT 2025
