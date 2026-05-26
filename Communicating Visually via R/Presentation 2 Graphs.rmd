@@ -1,0 +1,130 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+m <- 25      # Total number of tests
+i <- 1:m     # Rank vector (1 to 25)
+i_over_m <- i / m # This is the theoretical "expected noise" line
+```
+
+```{r}
+# --- Graph 1: "Noise-Only" World ---
+# What do P-values look like if ALL tests are "noise" (all nulls are true)?
+# By definition, they are uniformly distributed between 0 and 1.
+p_values_noise <- runif(1000, min = 0, max = 1)
+
+# Sort them from smallest to largest
+p_values_noise_sorted <- sort(p_values_noise)
+
+# Plot the sorted P-values against their rank (i)
+plot(1:m, p_values_noise_sorted,
+     main = "Graph 1: P-Values from 'Noise' Only",
+     xlab = "Rank (i)",
+     ylab = "Sorted P-Value",
+     pch = 20, col = "gray",
+     sub = "P-values from true nulls follow the red line")
+
+# Add the "expected noise" line (P = i/m)
+lines(1:m, (1:m)/1000, col = "red", lty = 2, lwd = 2)
+
+legend("bottomright",
+       legend = c("Observed P-Values (Noise)", "Expected Line (i/m)"),
+       col = c("gray", "red"),
+       lty = c(NA, 2), pch = c(20, NA), lwd = c(NA, 2))
+```
+
+```{r}
+# Define the Q values and their colors
+Q_vals <- c(0.20, 0.10, 0.05)
+colors <- c("darkgreen", "orange", "purple")
+
+# Calculate the three BH critical value lines
+bh_line_1 <- (i / m) * Q_vals[1]
+bh_line_2 <- (i / m) * Q_vals[2]
+bh_line_3 <- (i / m) * Q_vals[3]
+
+# Set up the same blank plot
+plot(i, i_over_m, 
+     type = "n",
+     main = "Graph 2: BH Critical Value Lines (Q)",
+     xlab = "Rank (i)",
+     ylab = "P-Value",
+     ylim = c(0, 1))
+
+# Add the original (i/m) line
+lines(i, i_over_m, col = "red", lty = 2, lwd = 2)
+
+# Add the three BH lines
+lines(i, bh_line_1, col = colors[1], lty = 1, lwd = 2)
+lines(i, bh_line_2, col = colors[2], lty = 1, lwd = 2)
+lines(i, bh_line_3, col = colors[3], lty = 1, lwd = 2)
+
+# Add a grid
+grid()
+
+# Add a comprehensive legend
+legend("topleft",
+       legend = c("Expected Line (i/m)",
+                  paste("BH Line, Q =", Q_vals[1]),
+                  paste("BH Line, Q =", Q_vals[2]),
+                  paste("BH Line, Q =", Q_vals[3])),
+       col = c("red", colors),
+       lty = c(2, 1, 1, 1),
+       lwd = 2)
+```
+
+```{r}
+p_values <- c(0.001, 0.008, 0.039, 0.041, 0.042, 0.060, 0.074, 0.205, 0.212, 0.216, 0.222, 0.251, 0.269, 0.275, 0.34, 0.341, 0.384, 0.569, 0.594, 0.696, 0.762, 0.94, 0.942, 0.975, 0.986)
+my_p_values_sorted <- sort(p_values)
+# ============================================
+
+# Define the single Q value and its line
+Q_single <- 0.25
+bh_line_single <- (i / m) * Q_single
+
+# Plot your p-values as points
+plot(i, my_p_values_sorted,
+     pch = 20, # pch=20 gives solid circles
+     col = "blue",
+     main = paste("Graph 3: Finding the Cutoff (Q = 0.25)"),
+     xlab = "Rank (i)",
+     ylab = "Sorted P-Value",
+     ylim = c(0, 1))
+
+# Add the single BH line
+lines(i, bh_line_single, 
+      col = "darkgreen", 
+      lty = 1, 
+      lwd = 2)
+
+# Optional: Find and draw the cutoff
+# This code finds the last p-value under the line and draws crosshairs
+under_line <- my_p_values_sorted <= bh_line_single
+if (any(under_line)) {
+  cutoff_rank <- max(which(under_line))
+  cutoff_p <- my_p_values_sorted[cutoff_rank]
+  
+  # Add dotted lines for the cutoff
+  abline(v = cutoff_rank, col = "gray", lty = 3, lwd = 2)
+  abline(h = cutoff_p, col = "gray", lty = 3, lwd = 2)
+  
+  # Label the cutoff
+  text(cutoff_rank - 0.5, 0.5, 
+       paste("Cutoff Rank (k) =", cutoff_rank), 
+       adj = 1, srt = 90) # srt=90 rotates text
+}
+
+# Add a grid
+grid()
+
+# Add legend
+legend("topleft",
+       legend = c("My P-Values",
+                  paste("BH Line, Q =", Q_single)),
+       col = c("blue", "darkgreen"),
+       pch = c(20, NA), # Point for p-values, no point for line
+       lty = c(NA, 1),  # No line for p-values, line for BH
+       lwd = 2)
+```

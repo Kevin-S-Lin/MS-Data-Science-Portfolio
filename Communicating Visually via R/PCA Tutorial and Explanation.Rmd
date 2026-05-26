@@ -1,0 +1,352 @@
+---
+title: "PCA Tutorial and Explanation"
+output:
+  html_document:
+    df_print: paged
+bibliography: pca_tutorial_references.bib
+link-citations: true
+---
+
+```{r}
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(knitr)
+```
+
+
+# Principal Component Analysis in R, An Explanation & Tutorial
+
+## Introduction: The "Curse of Dimensionality" Problem
+
+Imagine you just received a dataset with 50 columns (or *features*) and you're told "see what's in there." Where would you even start?
+
+You could make scatter plots, but to see every 2D relationship, you'd need to look at $\frac{50 \times 49}{2} = 1,225$ plots! This is a classic problem of **high dimensionality**.
+
+This is where **Principal Component Analysis (PCA)** comes in.
+
+### What is Principal Component Analysis?
+
+PCA is a **dimensionality reduction** technique. Given a large set of *correlated* variables, PCA summarizes the dataset with a smaller set of *new*, *uncorrelated* variables.
+
+These new variables are called **Principal Components (PCs)**. The goal is to create just a few PCs that collectively **explain most of the variability** in the original dataset.
+
+### Why Do We Use It?
+
+1.  **Visualization:** It lets us condense 10, 50, or 100+ dimensions down into however many you need. For this tutorial, just 2 (PC1 & PC2) so we can make a scatter plot and *visually* see patterns, clusters, or outliers
+2.  **Noise Reduction:** The first few PCs capture the main "signal" in the data. The last few PCs often just represent noise. By dropping the last PCs, we can get a cleaner dataset.
+3.  **Better Machine Learning:** Using a few PCs instead of hundreds of original features as predictors in a regression or classification model (this is called *Principal Component Regression*) can be faster, simpler, and prevent overfitting.
+
+PCA is an **unsupervised** method, meaning it only looks at the features (the $X$ variables). It doesn't use any "labels" or "answers" (the $y$ variable).
+
+------------------------------------------------------------------------
+
+## What are Principal Components?
+
+Let's start with a simple 2D example. We'll use the `iris` dataset, but first only look at two highly correlated features: `Petal.Length` and `Petal.Width`. [@grolemund_2025_r]
+
+```{r}
+# Load the iris dataset
+data(iris)
+
+# Plot two correlated features
+ggplot(iris, aes(x = Petal.Length, y = Petal.Width)) +
+  geom_point(aes(color = Species), alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "A Simple 2D Scatter Plot")
+```
+
+
+You can see the data isn't a random cloud. It has a clear shape—it's stretched out from the bottom-left to the top-right. Now our task is to capture this vague pattern we can see in the data.
+
+### The First Principal Component (PC1)
+
+The **First Principal Component (PC1)** is the *direction* in the data that captures the **most variance**. It's the "best" line you can draw *through* the data cloud that explains the data's primary "stretch."
+
+This new PC1 "axis" is a **linear combination** of the original features.:
+
+$$PC1 = (\phi_{11} \times \text{Petal.Length}) + (\phi_{21} \times \text{Petal.Width})$$
+
+-   The $\phi$ (phi) values are called **loading vectors**. They tell us how much each original feature "contributes" to that PC.
+
+### The Second Principal Component (PC2)
+
+The **Second Principal Component (PC2)** is the direction that captures the *next* most variance, with one crucial rule: it **must be uncorrelated (orthogonal) to PC1**.
+
+In a 2D plot, this is easy: it's just the line that's at a 90-degree angle to PC1.
+
+It would look something like:
+
+$$PC2 = (\phi_{12} \times \text{Petal.Length}) + (\phi_{22} \times \text{Petal.Width})$$
+
+### The Subsequent Principal Components
+
+If we had 3 features, PC3 would be orthogonal to PC1 and PC2. You can have as many PCs as you have original features, but the first few will always be the most important (this is due to subsequent PCs all having to be uncorrelated with the prior PCs).
+
+### Two Ways to Think About It
+
+Now, let's bring all together with some intuition building. There are two "goals" of PCA that lead to the exact same result:
+
+1.  **Maximize Explained Variance:** Find the new axes (PCs) that are oriented to capture the maximum amount of spread in the data. This is what we just visualized.
+2.  **Minimize Distance:** Find the line (or plane) that is *closest* to all the data points. If you were to measure the (squared) Euclidean distance from each point to the PC1 line, the sum of those distances would be the smallest possible.
+
+Both interpretations tell us the same thing: the principal components are the lines and planes that "best summarize" the data cloud.
+
+------------------------------------------------------------------------
+
+## Step-by-Step Walkthrough/Tutorial: `USArrests`
+
+[This example was inspired by Section 12.2.1 in *An Introduction to Statistical Learning*. Please refer to reference [1] for much more in-depth information and explanation. This is just a tutorial.] [@introduction_2021_an]
+
+Let's do a real PCA on the built-in `USArrests` dataset. This dataset only has 4 features, but the following methods can be generalized to many more features.
+
+**Key Point**: **PCA works best on features with the continuous data type. Categorical data does not work quite as well in PCA.**
+
+```{r}
+data(USArrests)
+head(USArrests)
+```
+
+
+### First Step: Scaling
+
+Look at the data. `Assault` ranges from 45 to 337, while `Murder` ranges from 0.8 to 17.4.
+
+If we run PCA right now, the `Assault` variable will **dominate** the analysis *only* because it has the biggest numbers and thus the biggest variance. The other variables will be ignored.
+
+**Rule of thumb: You must scale your data before running PCA.**
+
+We need to center all variables to have a **mean of 0** and scale them to have a **standard deviation of 1**. This puts every variable on equal footing because we want variance relative to each feature.
+
+**Disclaimer**: There are cases where all the features being computed have the same units and you do not want to normalize.
+
+The `prcomp()` function in R has the `scale.` argument to do this automatically (the period at the end of scale is not a typo).
+
+```{r}
+# Run PCA, setting scale. = TRUE
+pca_arrests <- prcomp(USArrests, scale. = TRUE)
+
+# Print the results
+print(pca_arrests)
+```
+
+
+### Second Step: Interpret the Output
+
+The `prcomp` [@a2025_prcomp] object has three key parts:
+
+#### 1. `summary()`: The Proportion of Variance Explained (PVE)
+
+This is the most important output. It tells us how much of the *total* data "spread" each PC captures.
+
+```{r}
+summary(pca_arrests)
+```
+
+
+-   **Standard deviation:** A measure of the variance captured by each PC.
+-   **Proportion of Variance:**
+    -   PC1 alone captures **62.01%** of all the information (variance) from the 4 original features.
+    -   PC2 captures another **24.74%** of all the information from the 4 original features.
+-   **Cumulative Proportion:**
+    -   PC1 + PC2 together capture **86.75%** of the variance.
+
+We've compressed 4 features into 2 and only "lost" about 13% of the information. While this is quite impressive, when scaled up and used on a another dataset with far more features, the dimensionality reduction is even more drastic.
+
+#### 2. `rotation`: The Loading Vectors
+
+This is the linear combination of each feature for each PC.
+
+**Important**: The signs given by `prcomp` are arbitrary. What is important is looking at which features are correlated with each other.
+
+```{r}
+print(pca_arrests$rotation)
+```
+
+
+This can be visualized much more effectively with a bar graph for each Principal Component.
+
+```{r}
+# Get the loadings (rotation) from PCA result
+loadings_df <- as.data.frame(pca_arrests$rotation)
+
+# Add a 'Variable' column (the names of your original features)
+loadings_df$Variable <- rownames(loadings_df)
+
+# Reshape the data, this is necessary for ggplot2 to easily facet by PC
+loadings_long <- loadings_df %>%
+  pivot_longer(
+    cols = starts_with("PC"), # Select columns that start with "PC"
+    names_to = "Principal_Component", # New column for PC names
+    values_to = "Loading_Value" # New column for the actual loading numbers
+  )
+
+# Create the faceted bar plot
+ggplot(loadings_long, aes(x = Variable, y = Loading_Value, fill = Loading_Value > 0)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("FALSE" = "indianred", "TRUE" = "steelblue"),
+                    guide = "none") + # Color bars based on positive/negative loading
+  facet_wrap(~ Principal_Component, ncol = 2) + # Facet by PC
+  labs(title = "Feature Impact on Principal Components (USArrests)",
+       x = "Original Variable",
+       y = "Loading Value") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotate x-axis labels for readability
+```
+
+
+-   **PC1:** It's a combination of `-0.536 * Murder`, `-0.583 * Assault`, `-0.278 * UrbanPop`, and `-0.543 * Rape`. This PC represents a general "Overall Crime Rate" index. A state with a **low** **PC1** score is high on *all* crime metrics.
+-   **PC2:** It's `+0.873 * UrbanPop` and negative on the `-0.418 * Murder`. This PC seems to represent a contrast: **Urban vs. Rural Crime**. A state with a high PC2 score is highly urban, while a state with a low PC2 score is more rural.
+
+#### 3. `x`: The Scores
+
+This is our new dataset! It has 50 rows (one for each state) and 4 columns (PC1, PC2, PC3, PC4), with the new "values" for each state.
+
+```{r}
+# The 'x' object contains the PC scores
+head(pca_arrests$x)
+```
+
+
+### Third Step: Choosing Embedding Dimension (Deciding How Many PCs to Use Via Scree Plot)
+
+So how many PCs should we keep? We look at a **scree plot**, which plots the variance explained by each PC.
+
+```{r}
+# Calculate PVE
+pve <- pca_arrests$sdev^2 / sum(pca_arrests$sdev^2)
+
+# Plot PVE
+qplot(x = 1:4, y = pve, geom = c("point", "line")) +
+  labs(title = "USArrests Scree Plot",
+       x = "Principal Component",
+       y = "Proportion of Variance Explained") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal()
+```
+
+
+We look for the "elbow" — the point where the line drops off. Here, the "elbow" is at PC2. The graph drops sharply from PC1 to PC2, and then slowly flattens out. This confirms that the first two PCs are the most important.
+
+Another great way to think about it is the Cumulative Explained Variance Graph below. Inspired by Figure 12.3 [@introduction_2021_an], we can look at how picking out the elbow on the **scree** **plot** is the same as picking the point of diminishing returns for explained variance.
+
+```{r}
+# Create a data frame with components and their cumulative PVE
+cumulative_pve_df <- data.frame(
+  Component = 1:length(pve),
+  Cumulative_PVE = cumsum(pve) # Use cumsum() for the cumulative sum
+)
+
+# Plot the cumulative PVE
+ggplot(cumulative_pve_df, aes(x = Component, y = Cumulative_PVE)) +
+  geom_line(color = "steelblue", size = 1) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_x_continuous(breaks = 1:length(pve)) +
+  labs(title = "Cumulative Proportion of Variance Explained (PVE)",
+       x = "Number of Principal Components",
+       y = "Cumulative PVE")
+```
+
+
+### Fourth Step: The Biplot
+
+The **biplot** is a useful visualization from a PCA. In our case, it plots:
+
+1.  The **scores** for each observation (the states, as text, PC1 & PC2 axis labels are on the bottom and left).
+2.  The **loading vectors** for each feature (the crimes, as red arrows, magnitude axis labels are on the top and right).
+
+```{r}
+biplot(pca_arrests, scale = 0, xlabs=state.abb, cex=.6)
+```
+
+
+**How to Read This Biplot:**
+
+-   **States (Observations):** States that are close together are similar. `Tennessee`, `Alabama`, and `Georgia` are all clustered on the left, meaning they have low PC1 correlations (high "Overall Crime"). `North Dakota` and `Vermont` are on the far right (low "Overall Crime").
+-   **Arrows (Features):**
+    -   `Assault`, `Murder`, and `Rape` all point in the same direction (left). This means they are highly correlated. They also define the PC1 axis.
+    -   `UrbanPop` points up, defining the PC2 axis. It's at a 90-degree angle to the crime arrows, meaning it's relatively uncorrelated with them.
+    -   `California` is high on PC2 (very urban) but also negative on PC1 (higher than average crime).
+    -   `North Dakota` is high on PC1 (low crime) and low on PC2 (low urban pop).
+
+### Congrats!
+
+That's it for a tutorial on Principal Component Analysis! Everything mentioned above can be scaled up and used on datasets with far more features. Below, I've included a parting gift with the tutorial. It is a simple cookbook you can copy & paste as a base to modify your own PCA.
+
+------------------------------------------------------------------------
+
+## Cookbook: Your PCA Plug-and-Play Code
+
+Here is a simple, commented block of code you can adapt for your own projects.
+
+```{r, eval=FALSE}
+# --- PCA COOKBOOK ---
+
+# 1. Load your data
+# Make sure your data is in a data frame, with observations as rows
+# and features as columns.
+my_data <- read.csv("your_data.csv")
+
+# 2. (Optional) Separate labels
+# If you have a label/group column (like "Species" or "Cultivar"),
+# move it to a separate object. PCA only works on features.
+my_labels <- my_data$my_group_column
+my_features <- my_data[, -1] # Remove the label column
+
+# 3. Run PCA
+# CRITICAL: Use scale. = TRUE unless you are 100% sure your
+# variables are all on the same scale (which they rarely are).
+pca_results <- prcomp(my_features, scale. = TRUE)
+
+# 4. Check the summary
+# How much variance did you capture in the first few PCs?
+summary(pca_results)
+
+# 5. Make a Scree Plot
+# Decide how many PCs to keep. Look for the "elbow."
+pve <- pca_results$sdev^2 / sum(pca_results$sdev^2)
+plot(pve, type = "b", main = "Scree Plot", 
+     xlab = "Principal Component", ylab = "PVE")
+
+# 6. Make a Biplot
+# Interpret the first two PCs.
+biplot(pca_results, scale = 0)
+```
+
+
+------------------------------------------------------------------------
+
+## Appendix: A Look at the Math
+
+You don't need to know the math to *use* PCA, but it's good to know what's happening. The following is taken directly from the textbook *An Introduction to Statistical Learning*.[@introduction_2021_an]
+
+-   **Centering:** First, for every feature $j$, its mean $\bar{x}_j$ is subtracted from every observation. This sets the mean of all features to 0.
+
+-   **[Figure 12.3 from ISLR Textbook] The Goal (Maximize Variance):** PCA finds the "loadings" ($\phi$) for PC1 by solving this maximization problem:
+
+    $$
+    \text{maximize}_{Linear\ Combination} \left[ \frac{1}{n}\sum^n_{i=1} \left( \sum^p_{j=1}\phi_{j1}x_{ij} \right)^2 \right], \quad \text{subject to} \sum^p_{j=1}\phi2_{j1}=1
+    $$\* The $\frac{1}{n}\sum(\dots)^2$ part is just the formula for **variance**.
+
+    -   The $\sum \phi^2_{j1}=1$ part is a **normalization** constraint. It just forces the loading vector to have a length of 1, which is necessary to get a unique answer.
+
+-   **How it's Solved:** This problem is solved using **eigenvalue decomposition** of the **covariance matrix** (or correlation matrix, if you scaled the data).
+
+    -   The **eigenvectors** of the covariance matrix are the **loadings** (the `rotation` object, or $\phi$).
+    -   The **eigenvalues** ($\lambda$) of the covariance matrix tell you the **variance** explained by each of those eigenvectors.
+
+-   **Proportion of Variance Explained (PVE):** The PVE for the $m$-th principal component is simply that principal components variance divided by the total variance.
+
+    -   **[Figure 12.8 from ISLR Textbook] Total Variance**
+
+        $$
+        \sum^p_{j=1}Var(X_j) = \sum^p_{j=1}\frac{1}{n}\sum^n_{i=1}x^2_{ij}
+        $$
+
+    -   **[Figure 12.9 from ISLR Textbook] Variance Explained By *m*th Principal Component**
+
+        $$
+        \frac{1}{n}\sum^n_{i=1}z^2_{im}=\frac{1}{n}(\sum^p_{j=1}\phi_{jm}x_{ij})^2
+        $$
+
+    ‌

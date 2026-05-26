@@ -12,12 +12,13 @@
     - Search: Wraps model with KerasClassifier, runs GridSearchCV (cv=3), prints best score/params and all mean/std results.
     - Output: Finds best hyperparameter combination and reports cross-validated scores.
 ## Boston Housing - Network Depth Comparison
-
+Predict median home values (MEDV) using a multilayer perceptron (MLP) and analyze the impact of network depth on convergence speed and error rates.
 
 ## IMDB Sentiment Analysis
-
+Classify movie reviews as positive or negative using the IMDB dataset. The project compares traditional baseline models against Convolutional Neural Networks (CNN) leveraging word embeddings.
 
 ## LSTM Alphabet Sequence Prediction
-
+Developed a Recurrent Neural Network (RNN) using Long Short-Term Memory (LSTM) units to solve a character-level sequence prediction task. The model was trained to predict the succeeding letter in the alphabet given a single-character input, establishing a foundation for more complex time-series and sequence modeling.
 
 ## MNIST Digit GAN
+Implemented a Generative Adversarial Network (GAN) to synthesize handwritten digits from the MNIST dataset. The project involved designing a zero-sum game between a Generator, which creates images from noise, and a Discriminator, which learns to distinguish real data from synthetic outputs.

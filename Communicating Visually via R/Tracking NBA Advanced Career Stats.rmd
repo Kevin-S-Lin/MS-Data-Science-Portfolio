@@ -1,0 +1,72 @@
+---
+title: "NBA Advanced Stats Facetted Graphs"
+output: pdf_document
+---
+# Facetting Graphs of NBA Advanced Stats
+
+```{r}
+library(tidyverse)
+library(socviz)
+library(readr)
+df <- read_csv("nbaNew.csv")
+df$PlayerSalary <- as.numeric(gsub("[$,]", "", df$PlayerSalary))
+
+# Since there are too many players, let's try filtering by only players that have ever been paid 20 million dollars or more
+high_salary_players <- df %>%
+  group_by(PlayerName) %>%
+  filter(any(PlayerSalary > 2e7)) %>%
+  distinct(PlayerName) %>%
+  pull(PlayerName)
+
+head(data)
+
+head(high_salary_players)
+
+# Now let's filter the csv by the list of names
+filtered_df <- df %>%
+  filter(PlayerName %in% high_salary_players)
+
+head(filtered_df)
+```
+
+
+First let's try looking at player progressions. I'll use the relatively simple BPM or Box Plus Minus to check overall on-court impact. This number is calculated using a regression formula that takes a player's traditional box score statistics, like points, rebounds, and assists, and estimates their contribution per 100 possessions above the league average.
+
+```{r}
+p <- ggplot(data=filtered_df, mapping=aes(x=SeasonStart, y=BPM))
+p + geom_line(aes(group = PlayerName))+
+ labs(x="Season", y="Box Plus Minus")
+p
+```
+
+
+I can't see much, so this time let's try faceting by player.
+
+```{r}
+p + geom_line(aes(group = PlayerName))+
+ labs(x="Season", y="Box Plus Minus")+
+ facet_wrap(~PlayerName)
+```
+
+
+We can see that not every player played every season (as expected) and in it we can pick out several standout contributors (along with personal insight on their stories). We see a massive spike for Derrick Rose before he got injured, Hassan Whiteside who blossomed into a defensive menace, Lebron & Jordan & Kobe who were perpetually the main contributors on their team. On and on.
+
+Unfortunately, in this case we only filtered by the players who had earned 20 million or more but there are definitely plenty of those that had incredible careers.
+
+Next, let's trying looking at VORP, another advanced statistic as defined below:
+
+```         
+VORP, or Value Over Replacement Player, is calculated by first determining a player's Box Plus/Minus (BPM), which estimates points per 100 possessions over an average player. VORP then converts this per-possession stat into a total season contribution by factoring in the player's percentage of team minutes played, with the final value scaled to an 82-game season to measure how many points they've contributed over a "replacement-level" player. A replacement-level player is defined as a player who is readily available, such as one on a minimum salary or not in a team's regular rotation. 
+```
+
+```{r}
+q <- ggplot(data=filtered_df, mapping=aes(x=SeasonStart, y=VORP))
+q + geom_line(aes(group = PlayerName))+
+ labs(x="Season", y="VORP")+
+ facet_wrap(~PlayerName)
+```
+
+
+Through this statistic we can see a different story for some players. While BPM estimated contributions normalized by league average, this can sometimes be subject the star player's stats to bias when their entire team is far above or below league average. With VORP, you gain some robustness to the effect a good or bad team has on the player.
+
+Looking at some of the lines above like, J.J. Redick or Enes Kanter, we can see that while they had decent BPM, their VORP shows that their value may have been overstated by being normalized against league average.

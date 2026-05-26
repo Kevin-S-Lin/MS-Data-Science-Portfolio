@@ -1,0 +1,209 @@
+---
+title: "Heart Disease Predictors"
+output: pdf_document
+---
+# Finding Key Factors (& Combination of Factors) that Predict Heart Disease
+
+## Preprocessing
+
+We know from the accompanying documentation in [cleve.mod] that the form of the data follows age; sex (1,0); cp (1-4); trestbps; chol; fbs (1,0); restecg (0,1,2); thalach; exang (1,0); oldpeak; slope (1,2,3); ca; thal (3,6,7); class att: 0 is healthy, 1,2,3,4 is sick.
+
+Delving into the online documentation, we can see the following:
+
+-   'age' and 'sex' are self explanatory, with 1 = male and 0 = female.
+
+-   'cp' stands for chest pain.
+
+-   'trestbps' stands for resting blood pressure (in mm Hg) on admission to the hospital.
+
+-   'chol' stands for cholesterol.
+
+-   'fbs' stands for fasting blood pressure, where 1 means (\>120 mg/dl) and 0 means (\<= 120 mg/dl).
+
+-   'restecg' is the resting electrocardiographic results, where 0 is normal, 1 is ST-T wave abnormality, 2 is probable/definite left ventricular hypertrophy by Estes' criteria.
+
+-   'thalach' stands for the maximum heart rate achieved through exercise.
+
+-   'exang' stands for exercised induced angina, where 1 = yes and 0 = no.
+
+-   'oldpeak' stands for ST depression induced by exercise relative to rest.
+
+-   'slope' stands for the slope of the peak exercise ST segment, where 1 = up-sloping, 2 = flat, and 3 = down-sloping.
+
+-   'ca' is for the number of major vessels (0-3) colored by flouroscopy.
+
+-   'thal' stands for the thallium stress test, where 3 = normal, 6 = fixed defect, and 7 = reversible defect.
+
+-   'num' stands for the diagnosis of heart disease (angiographic disease), where 1 is (\>50% diameter narrowing) and 0 is (\<50% diameter narrowing).
+
+    -   This is not on the website, but is in [cleve.mod] that we should consider everything but 0 a positive diagnosis for heart disease.
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+
+# Define column names
+col_names <- c("age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
+               "thalach", "exang", "oldpeak", "slope", "ca", "thal", "num")
+
+# Load the data
+# I have the 'heart+disease' data folder at the same level as this file
+heart_data <- read_csv("heart+disease/processed.cleveland.data", col_names = col_names)
+print(heart_data)
+# Data Cleaning and Preparation
+heart_data_clean <- heart_data %>%
+  mutate(
+    # Convert categorical variables to factors with meaningful labels
+    sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")),
+    cp = factor(cp, levels = c(1, 2, 3, 4), labels = c("Typical Angina", "Atypical Angina", "Non-anginal Pain", "Asymptomatic")),
+    fbs = factor(fbs, levels = c(0, 1), labels = c("<=120 mg/dl", ">120 mg/dl")),
+    restecg = factor(restecg, levels = c(0, 1, 2), labels = c("Normal", "ST-T Abnormality", "Hypertrophy")),
+    exang = factor(exang, levels = c(0, 1), labels = c("No", "Yes")),
+    thal = factor(thal, levels = c('3.0', '6.0', '7.0'), labels = c("Normal", "Fixed Defect", "Reversible Defect")),
+    
+    # Convert target variable 'num' to a more descriptive factor (we are more concerned with presence than severity in this analysis)
+    heart_disease = factor(ifelse(num > 0, "Present", "Absent"))
+  )
+
+print(heart_data_clean)
+```
+
+
+Now, let's come up with a plan to use this data.
+
+From a higher level view, I can see this data can be divided into several different categories. The columns 'age' and 'sex' would fall into demographics. The columns 'trestbps', 'chol', and 'fbs' can all be considered information on the larger cardiovascular system instead of being explicitly focused on the heart. The rest of the columns seem to be explicitly focused on the heart. Finally, the 'num' and 'heart_disease' columns are our indicators for results.
+
+## Demographics
+
+First, let's look at the most simplest factors: age and sex. We already know that this data is taken solely from Cleveland, Ohio so the remaining demographic information only falls to these two factors.
+
+```{r}
+ggplot(heart_data_clean, aes(x=age, fill=heart_disease)) +
+  geom_density() +
+  facet_wrap(~ sex) +
+  labs(
+    title = "Demographic Impact of Heart Disease Risk",
+    x = "Age of Patient",
+    y = "Number of people",
+    fill = "Presence of Heart Disease"
+  )
+```
+
+
+We can see from these histograms that there is a spike in the presence of heart disease for both men and women near the age of 60. Furthermore, we can also tell that almost all of the data was collected on people between the ages of 35 and 75.
+
+In general, we can tell that the risk of heart disease tends to increase with age regardless of sex. The graphics shows an upward trend, but more important than that is the proportion of heart disease that is present rather than the sheer number. For males we can see that the graph peaks at \~67, but when you look at the subsequent bars on the histogram, we can see that the proportion of males with heart disease is actually even greater than the peak. Females, on the other hand, do not look as prone to heart disease even considering the lower number of samples.
+
+From this we know, moving forward, that using age as an axis when looking at other variables would be useful since sex since it seems to be a better predictor of heart disease.
+
+### Age and Heart Rate under Stress
+
+```{r}
+ggplot(heart_data_clean, aes(x=age, y=thalach, color=heart_disease)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~ sex) +
+  labs(
+    title = "Impact of Age and Heart Disease on Thalach",
+    x = "Age of Patient",
+    y = "Heart Rate Under Stress",
+    fill = "Presence of Heart Disease"
+  )
+```
+
+
+Outside of that one outlier (that person is an absolute champ) causing the tail of the heart disease line to flick up at the end, the larger trend shows that thalach decrease with age (heart disease present or not). In addition to thalach decreasing with age, the presence of heart disease seems to quite heavily impact just how much stress the heart can endure. This is useful, since even without knowing the exact biology, we can still correlate lower thalach for age group as a possible indicator of heart disease.
+
+## Cardiovascular System
+
+Before delving into a closer look on the heart, let's go over the blood pressure and cholesterol that can be considered more 'general' variables.
+
+### Cholesterol, Blood Sugar, and Disease
+
+```{r}
+ggplot(heart_data_clean, aes(x=heart_disease, y=chol, fill = fbs)) +
+  geom_boxplot() +
+  labs(
+    title = "Looking at Cholesterol and Blood Sugar with and without Heart Disease",
+    x = "Presence of Heart Disease",
+    y = "Cholesterol",
+    fill = "Fasting Blood Sugar"
+  )
+```
+
+
+We can see that those with higher cholesterol can be correlated with a higher likelihood of heart disease. On the other hand, fasting blood sugar does not seem to be as big of an indicator as those with elevated levels and normal levels both seem to be around the same when separated by heart disease.
+
+### Cholesterol & Resting Blood Pressure
+
+```{r}
+ggplot(heart_data_clean, aes(x=trestbps, y=chol)) +
+  geom_density_2d() +
+  facet_wrap(~ heart_disease) +
+  labs(
+    title = "Looking at Cholesterol and Blood Pressure with and without Heart Disease",
+    x = "Resting Blood Pressure",
+    y = "Cholesterol"
+  )
+```
+
+
+Following our discovery of higher age, lower thalach, and higher cholesterol all being positively correlated with the presence of heart disease, I've decided to dig a little deeper into cholesterol. Looking at the 2D density graph we can see that those without heart disease tends to concentrate at \~130 resting blood pressure and \~225 cholesterol with a tail leaning left. For the graph of patients with heart disease, while the density of the center most ring is in a similar place on the X-axis, we can see that the density plot spreads out much more to the right and up.
+
+The results of this graph is less obvious, so it doesn't quite prove any correlation between cholesterol and blood pressure. But it stills shows a slight trend where higher cholesterol and higher resting blood pressure tends to be present for patients with heart disease.
+
+## Closer Examination of the Heart
+
+### Patient Reported Chest Pain + Stress Test
+
+```{r}
+ggplot(heart_data_clean, aes(y=cp, fill=heart_disease)) +
+  geom_bar() +
+  facet_wrap(~ exang) +
+  labs(
+    title = "Looking at Self-Reported Chest Pain & Exercise Induced Angina",
+    x = "Is there Exercise Induced Angina? (Number of Patients)",
+    y = "Type of Chest Pain",
+    fill = "Presence of Heart Disease"
+  )
+```
+
+
+From the graphs, we can see that the highest proportion of people with heart disease are those with asymptomatic chest pain (with or without exercise induced angina). For more information, asymptomatic chest pain refers to chest discomfort that occurs without any other noticeable symptoms. Angina chest pain on the other hand is a type of chest pain caused by reduced blood flow to the heart muscle.
+
+This is very interesting. This graph suggests that the type of chest pain can also be used as a predictor for heart disease. But when I was doing exploratory data analysis, I saw that when this is conditioned on the presence of exercise induced angina, the correlation for heart disease indication rose dramatically.
+
+### Direct Measurements of Severity
+
+```{r}
+ggplot(heart_data_clean, aes(x=oldpeak, y = ca, fill=heart_disease)) +
+  geom_violin() +
+  stat_summary(fun = median, geom = "point", shape = 18, size = 4, color = "white", position = position_dodge(width = 0.9)) +
+  labs(
+    title = "Direct Measurements",
+    x = "ST Depression",
+    y = "Number of Blocked Coronary Arteries",
+    fill = "Presence of Heart Disease"
+  )
+```
+
+
+We can see that the median of Old Peak increases with the number of coronary arteries confirmed to have blockage. This means that there is a positive correlation between the number of blocked arteries and exercise induced ST-Depression. Hence, both `ca` and `oldpeak` would be a useful variable to factor in when trying to predict heart disease.
+
+Intuitively, this makes a lot of sense. ST depression, as I understand it, measures how big of a dip (and therefore how severe the anomaly) is captured from your baseline electrocardiogram. Looking at the graph and the median points, we can see that there is a fairly obvious trend with the severity of the ST depression increasing with the number of coronary arteries being block.
+
+In the end, when we compare ST Depression and Coronary Arteries however, we can see that ST Depression is a slightly better indicator.
+
+# Conclusion
+
+## Predict and Plot High Risk Patients
+
+```{r}
+ggplot(heart_data_clean, aes(x=age, y=chol, color=heart_disease, size=oldpeak)) +
+  geom_point()
+```
+
+
+In the end, we come up with a suite of variables would lead to a good prediction of heart disease: higher age, lower thalach, higher cholesterol, asymptomatic chest pain & exercise induced angina, higher number of blocked coronary arteries, and finally higher ST depression.
